@@ -1,2 +1,3 @@
 # hacking_notes
-My hacking notes
+
+Repo to store my hacking notes
