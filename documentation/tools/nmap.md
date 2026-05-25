@@ -1,376 +1,235 @@
 # Nmap
 
-## Scan de base
+## Introduction
 
-Lister tous les ports TCP ouverts :
+Compact reference of common `nmap` commands and workflows used during recon and basic enumeration.
+
+## Basic scan
+
+List all open TCP ports:
 
 ```bash
 nmap -p- <ip>
 ```
 
-- `-p-` → scan les 65535 ports TCP
-- Par défaut, Nmap scan en TCP
+- `-p-` scans all 65535 TCP ports
+- By default, Nmap scans TCP ports
 
-Pour scanner les ports UDP :
+To scan UDP ports:
 
 ```bash
 nmap -sU <ip>
 ```
 
-UDP est :
-- beaucoup plus lent
-- souvent filtré
-- mais très important (DNS, SNMP, DHCP, NTP, etc.)
+UDP is:
+- much slower
+- often filtered
+- but important (DNS, SNMP, DHCP, NTP, etc.)
 
----
+## Service and version detection
 
-# Détection de services et versions
-
-Après avoir trouvé les ports ouverts :
+After finding open ports:
 
 ```bash
 nmap -sC -sV <ip>
 ```
 
-### `-sC`
-Lance les scripts NSE “par défaut”.
+`-sC` runs the default set of NSE scripts (useful for banners, basic enum, SSL info, etc.)
 
-Permet notamment :
-- récupérer bannières
-- détecter mauvaises configs
-- enum SMB/HTTP/FTP
-- informations SSL
-- etc.
+`-sV` attempts to detect the service and version (and sometimes framework/OS information).
 
-### `-sV`
-Détecte :
-- service exact
-- version
-- parfois OS/framework
+Example output:
 
-Exemple :
 ```text
 22/tcp open  ssh     OpenSSH 8.2p1
 80/tcp open  http    Apache httpd 2.4.41
 ```
 
----
-
-# Détection du système d’exploitation
+## OS detection
 
 ```bash
 nmap -O <ip>
 ```
 
-Essaye d’identifier :
-- Linux
-- Windows
-- BSD
-- version probable
+Attempts to guess the operating system (Linux, Windows, BSD, etc.).
 
----
-
-# Rapidité du scan
-
-## Scan rapide
+## Scan timing
 
 ```bash
 nmap -T4 <ip>
 ```
 
-Timing templates :
-- `-T0` → très lent/furtif
-- `-T3` → normal
-- `-T4` → rapide (souvent utilisé)
-- `-T5` → très agressif
+Timing templates:
+- `-T0` very slow/stealthy
+- `-T3` normal
+- `-T4` faster (commonly used)
+- `-T5` very aggressive
 
-Le plus courant :
-```bash
--T4
-```
+Commonly used: `-T4`.
 
----
+## Disable host discovery (no ping)
 
-# Désactiver le ping
-
-Certaines machines bloquent l’ICMP.
+Some hosts block ICMP. Use:
 
 ```bash
 nmap -Pn <ip>
 ```
 
-Force Nmap à considérer l’hôte comme “up”.
+Forces Nmap to treat the host as "up". Useful when ping is filtered.
 
-Très utile quand :
-- le ping est filtré
-- la machine semble down mais répond sur certains ports
+## Save output
 
----
-
-# Sauvegarder les résultats
-
-## Format normal
+Normal text:
 
 ```bash
 nmap -oN scan.txt <ip>
 ```
 
-## XML
+XML:
 
 ```bash
 nmap -oX scan.xml <ip>
 ```
 
-## Tous les formats
+All formats:
 
 ```bash
 nmap -oA scan <ip>
 ```
 
-Génère :
-- `scan.nmap`
-- `scan.xml`
-- `scan.gnmap`
+Generates `scan.nmap`, `scan.xml`, and `scan.gnmap`. Useful for parsing.
 
-Très pratique pour parser ensuite.
-
----
-
-# Scan d’un port spécifique
+## Scan specific ports
 
 ```bash
 nmap -p 80,443,8080 <ip>
+nmap -p 1-1000 <ip>  # range
 ```
 
-Ou plage :
-
-```bash
-nmap -p 1-1000 <ip>
-```
-
----
-
-# Scan UDP + TCP
+## TCP + UDP combined
 
 ```bash
 nmap -sS -sU <ip>
 ```
 
-Combine :
-- TCP SYN scan
-- UDP scan
+Combines TCP SYN and UDP scans.
 
----
+## TCP scan types
 
-# Types de scans TCP
-
-## SYN Scan (le plus utilisé)
+SYN scan (most used):
 
 ```bash
 nmap -sS <ip>
 ```
 
-- rapide
-- discret
-- “half-open scan”
+- fast
+- stealthy (half-open)
 
----
-
-## TCP Connect Scan
+TCP connect scan (no root required):
 
 ```bash
 nmap -sT <ip>
 ```
 
-- connexion TCP complète
-- plus détectable
-- utilisé sans privilèges root
+- full TCP connection
+- more detectable
 
----
+## NSE scripts
 
-# Scripts NSE (Nmap Scripting Engine)
-
-Lister les scripts disponibles :
+List scripts:
 
 ```bash
 ls /usr/share/nmap/scripts/
 ```
 
-Lancer un script spécifique :
+Run a specific script:
 
 ```bash
 nmap --script http-title <ip>
 ```
 
-Exemples utiles :
-- `http-title`
-- `smb-enum-shares`
-- `ftp-anon`
-- `vuln`
-- `ssl-cert`
+Useful scripts: `http-title`, `smb-enum-shares`, `ftp-anon`, `vuln`, `ssl-cert`.
 
----
-
-# Recherche de vulnérabilités
+## Vulnerability scanning (NSE)
 
 ```bash
 nmap --script vuln <ip>
 ```
 
-Permet parfois de détecter :
-- CVE connues
-- configs faibles
-- services vulnérables
+May reveal CVEs or weak configurations. Always verify findings manually.
 
-À confirmer manuellement ensuite.
+## Web enumeration examples
 
----
-
-# Enumération web
-
-## Récupérer le titre d’un site
+Get site title:
 
 ```bash
 nmap --script http-title -p80,443 <ip>
 ```
 
-## Enum SSL
+SSL enumeration:
 
 ```bash
 nmap --script ssl-cert,ssl-enum-ciphers -p443 <ip>
 ```
 
----
-
-# Enum SMB
+## SMB enumeration
 
 ```bash
 nmap --script smb-enum-shares,smb-enum-users -p445 <ip>
 ```
 
-Très utile en environnement Windows/AD.
+Useful for Windows/AD targets.
 
----
-
-# Scan réseau entier
+## Network-wide scan
 
 ```bash
 nmap 192.168.1.0/24
 ```
 
-Découverte d’hôtes actifs.
-
----
-
-# Découverte d’hôtes uniquement
+Host discovery only:
 
 ```bash
 nmap -sn 192.168.1.0/24
 ```
 
-- pas de scan de ports
-- uniquement découverte d’hôtes
+## Typical workflow
 
----
-
-# Bon workflow classique
-
-## 1. Découverte d’hôtes
+1. Host discovery:
 
 ```bash
 nmap -sn 192.168.1.0/24
 ```
 
----
-
-## 2. Full port scan
+2. Full port scan:
 
 ```bash
 nmap -p- -T4 <ip>
 ```
 
----
-
-## 3. Scan détaillé des ports trouvés
+3. Detailed scan on found ports:
 
 ```bash
 nmap -sC -sV -O -p<ports> <ip>
 ```
 
-Exemple :
+Example:
+
 ```bash
 nmap -sC -sV -O -p22,80,445 <ip>
 ```
 
----
+## Important tips
 
-# Conseils importants
+- Scan all ports (`-p-`). Top-1000 scans can miss non-standard services.
+- Don't forget UDP. Important services run on UDP (DNS, SNMP, NTP).
+- Nmap can be noisy. Tune timing and scope to avoid detection in real engagements.
 
-## Toujours scanner tous les ports
-
-Le top 1000 ports peut rater :
-- services custom
-- backdoors
-- ports non standards
-
-Donc :
-```bash
--p-
-```
-est souvent préférable en pentest.
-
----
-
-## UDP est souvent oublié
-
-Des services critiques tournent en UDP :
-- DNS (53)
-- SNMP (161)
-- NTP (123)
-
----
-
-## Nmap peut être bruyant
-
-Les IDS/EDR détectent facilement :
-- scans agressifs
-- NSE
-- scans massifs
-
-En environnement réel :
-- attention au scope
-- attention au timing
-
----
-
-# Commandes très utiles à retenir
-
-## Scan complet rapide
+## Handy commands
 
 ```bash
-nmap -p- -T4 <ip>
-```
-
-## Scan détaillé
-
-```bash
-nmap -sC -sV -O <ip>
-```
-
-## UDP
-
-```bash
-nmap -sU <ip>
-```
-
-## Tous les formats de sortie
-
-```bash
-nmap -oA scan <ip>
-```
-
-## Vuln scan NSE
-
-```bash
-nmap --script vuln <ip>
+nmap -p- -T4 <ip>                 # full TCP port scan
+nmap -sC -sV -O <ip>              # detailed scan
+nmap -sU <ip>                     # UDP scan
+nmap -oA scan <ip>                # save all formats
+nmap --script vuln <ip>           # NSE vuln scripts
 ```

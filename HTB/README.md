@@ -1,4 +1,4 @@
-# Linux easy machines:
+# Linux easy machines
 
 - [x] Soccer
 - [ ] TwoMillion

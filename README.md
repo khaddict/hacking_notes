@@ -1,6 +1,6 @@
 # Hacking notes
 
-## Resources:
+## Resources
 
 https://app.hackthebox.com/home  
 https://hacktricks.wiki/en/index.html  
@@ -11,5 +11,6 @@ https://gtfobins.org/
 
 ## Recon
 
-[Nmap documentation](https://github.com/khaddict/hacking_notes/blob/main/documentation/tools/nmap.md)
-[Virtual Host Discovery](https://github.com/khaddict/hacking_notes/blob/main/documentation/to_know/virtual_host_discovery.md)
+- [Nmap](documentation/tools/nmap.md)
+- [Virtual Host Discovery](documentation/essentials/virtual_host_discovery.md)
+- [Gobuster](documentation/tools/gobuster.md)

